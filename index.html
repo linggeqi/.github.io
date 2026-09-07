@@ -1228,6 +1228,80 @@
       background: rgba(201,210,211,0.78);
     }
 
+    /* Touch-friendly in-group frame pager (prev / next / counter).
+       Hidden where hover scrubbing exists; shown on coarse-pointer
+       devices where there is no pointer to scrub frames with. */
+    .frame-pager {
+      display: none;
+      align-items: center;
+      gap: 16px;
+      padding-top: 2px;
+    }
+
+    .frame-pager .frame-arrow {
+      width: 46px;
+      height: 46px;
+      border-radius: 999px;
+      border: 1px solid rgba(246,241,232,0.22);
+      background: rgba(246,241,232,0.05);
+      color: rgba(246,241,232,0.86);
+      font-size: 26px;
+      line-height: 1;
+      padding: 0;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      touch-action: manipulation;
+      transition: background 220ms var(--frame-ease), border-color 220ms var(--frame-ease);
+    }
+
+    .frame-pager .frame-arrow:active {
+      background: rgba(246,241,232,0.16);
+      border-color: rgba(246,241,232,0.4);
+    }
+
+    .frame-pager .frame-arrow:focus-visible {
+      outline: 1px solid rgba(201,210,211,0.72);
+      outline-offset: 3px;
+    }
+
+    .frame-pager .frame-count {
+      min-width: 64px;
+      text-align: center;
+      color: rgba(246,241,232,0.52);
+      font-size: 13px;
+      letter-spacing: 0.12em;
+      font-variant-numeric: tabular-nums;
+      user-select: none;
+    }
+
+    @media (hover: none), (any-pointer: coarse), (max-width: 760px) {
+      .frame-pager { display: inline-flex; }
+
+      /* On touch the deck must behave like a simple one-frame-at-a-time
+         gallery: only the current thumb is visible, filling the whole
+         group area, so tapping ‹/› (or the picture itself) clearly steps
+         between the frames inside the group. */
+      .frame-group.is-active .frame-thumb.is-current {
+        top: 0 !important;
+        left: 0 !important;
+        right: 0 !important;
+        height: 100% !important;
+        transform: none !important;
+        z-index: 45 !important;
+      }
+
+      .frame-group.is-active .frame-thumb:not(.is-current) {
+        opacity: 0 !important;
+      }
+
+      .frame-group.is-hovering .frame-thumb.is-current {
+        transform: none !important;
+        z-index: 45 !important;
+      }
+    }
+
     .ability-structure {
       --structure-ease: cubic-bezier(0.65, 0, 0.35, 1);
       position: relative;
@@ -3696,6 +3770,11 @@
           <div class="frame-caption" aria-live="polite">
             <h3 id="frameCaptionTitle"></h3>
             <p id="frameCaptionText"></p>
+            <div class="frame-pager" id="framePager" aria-label="Group frame pager">
+              <button type="button" class="frame-arrow" id="framePrev" aria-label="上一张图片">‹</button>
+              <span class="frame-count" id="frameCount" aria-live="polite"></span>
+              <button type="button" class="frame-arrow" id="frameNext" aria-label="下一张图片">›</button>
+            </div>
             <div class="frame-dots" id="frameDots"></div>
           </div>
         </div>
@@ -5417,10 +5496,14 @@
       const captionTitle = document.getElementById("frameCaptionTitle");
       const captionText = document.getElementById("frameCaptionText");
       const dots = document.getElementById("frameDots");
+      const pagerPrev = document.getElementById("framePrev");
+      const pagerNext = document.getElementById("frameNext");
+      const pagerCount = document.getElementById("frameCount");
       if (!carousel || !stage || !track || !captionTitle || !captionText || !dots) return;
 
       let activeGroupIndex = 0;
-      const activeFrameIndexes = frameGroups.map((group) => Math.max(0, group.frames.length - 1));
+      const coarseTouch = window.matchMedia("(hover: none), (any-pointer: coarse), (max-width: 760px)").matches;
+      const activeFrameIndexes = frameGroups.map((group) => (coarseTouch ? 0 : Math.max(0, group.frames.length - 1)));
       let wheelLockUntil = 0;
       let autoPauseUntil = 0;
       let dragStartX = 0;
@@ -5428,6 +5511,7 @@
       let dragging = false;
       let didDrag = false;
       let suppressClickUntil = 0;
+      let lastPointerKind = "mouse";
       const tones = ["tone-a", "tone-b", "tone-c", "tone-d"];
       const toneBackgrounds = [
         "linear-gradient(128deg, #25364a, #11141a 52%, #78623e)",
@@ -5495,6 +5579,14 @@
         button.addEventListener("click", () => {
           if (didDrag || performance.now() < suppressClickUntil) return;
           markInteraction();
+          if (groupIndex === activeGroupIndex) {
+            // On touch, a tap on the already-centred group steps to the next
+            // picture inside that group; on desktop the pointer scrub does it.
+            if (lastPointerKind !== "mouse" && group.frames.length > 1) {
+              stepActiveFrame(1);
+            }
+            return;
+          }
           setActiveGroup(groupIndex);
         });
 
@@ -5558,6 +5650,11 @@
         if (!group || dragging) return;
         const el = groupEls[groupIndex];
         if (el) el.classList.remove("is-hovering");
+        // Desktop rest state fans the deck to its cover (last thumb). On
+        // touch there is no fan: each tap on ‹/› or the picture itself
+        // steps the frames, and a synthetic pointerleave right after the
+        // tap must not snap the group back, so keep the current frame.
+        if (coarseTouch) return;
         setActiveFrame(groupIndex, group.frames.length - 1);
       }
 
@@ -5590,6 +5687,10 @@
         captionTitle.textContent = group.title;
         captionText.textContent = "";
         dots.innerHTML = "";
+        if (pagerCount) {
+          const current = activeFrameIndexes[activeGroupIndex];
+          pagerCount.textContent = `${current + 1} / ${group.frames.length}`;
+        }
         frameGroups.forEach((item, groupIndexItem) => {
           const dot = document.createElement("button");
           dot.type = "button";
@@ -5601,6 +5702,29 @@
             setActiveGroup(groupIndexItem);
           });
           dots.appendChild(dot);
+        });
+      }
+
+      function stepActiveFrame(direction) {
+        const group = frameGroups[activeGroupIndex];
+        if (!group || group.frames.length < 2) return;
+        const count = group.frames.length;
+        const current = activeFrameIndexes[activeGroupIndex];
+        const next = (current + direction + count) % count;
+        markInteraction();
+        setActiveFrame(activeGroupIndex, next);
+      }
+
+      if (pagerPrev) {
+        pagerPrev.addEventListener("click", (event) => {
+          event.preventDefault();
+          stepActiveFrame(-1);
+        });
+      }
+      if (pagerNext) {
+        pagerNext.addEventListener("click", (event) => {
+          event.preventDefault();
+          stepActiveFrame(1);
         });
       }
 
@@ -5673,6 +5797,7 @@
 
       function startDrag(event) {
         if (event.button !== undefined && event.button !== 0) return;
+        lastPointerKind = event.pointerType || "mouse";
         markInteraction();
         dragging = true;
         didDrag = false;
