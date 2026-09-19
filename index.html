@@ -1065,7 +1065,7 @@
       display: none;
       position: absolute;
       inset: 0;
-            -webkit-mask-image: linear-gradient(180deg, transparent 0, #000 7px, #000 calc(100% - 7px), transparent 100%),
+      -webkit-mask-image: linear-gradient(180deg, transparent 0, #000 7px, #000 calc(100% - 7px), transparent 100%),
         linear-gradient(90deg, transparent 0, #000 5px, #000 calc(100% - 5px), transparent 100%);
       -webkit-mask-composite: source-in;
       mask-image: linear-gradient(180deg, transparent 0, #000 7px, #000 calc(100% - 7px), transparent 100%),
@@ -2252,30 +2252,72 @@
       line-height: 1.5;
     }
 
+    /* Work-method detail: the expanded body must never be clipped, so the open
+       height is measured at runtime (--flow-hopen, a real pixel value) instead
+       of a guessed cap. The old 380px / 520px caps cut the longest entries
+       mid-sentence, and neither a max-height cap nor a grid-template-rows
+       transition could be trusted: engines that do not interpolate grid rows
+       made the panel jump open with no easing, and a JS-driven per-frame tween
+       depends on rAF cadence.
+       `height` is interpolated by every engine, and the value comes from the
+       measurement, so the easing is guaranteed and the content still fits. */
     .flow-detail {
-      grid-column: 3;
-      max-height: 0;
+      /* Spans the whole row so the reading bodies can use the full width */
+      grid-column: 1 / -1;
+      /* align-self:start keeps this grid item from being stretched to the row
+         height, which would defeat the explicit height below */
+      align-self: start;
+      min-height: 0;
+      height: 0;
       overflow: hidden;
       opacity: 0;
-      display: grid;
-      grid-template-columns: minmax(0, 1fr) minmax(0, 0.92fr);
-      gap: clamp(14px, 2vw, 28px);
       transform: translateY(-8px);
       transition:
-        max-height 560ms cubic-bezier(0.65, 0, 0.35, 1),
+        height 560ms cubic-bezier(0.65, 0, 0.35, 1),
         opacity 360ms cubic-bezier(0.65, 0, 0.35, 1),
-        padding 560ms cubic-bezier(0.65, 0, 0.35, 1),
         transform 560ms cubic-bezier(0.65, 0, 0.35, 1);
-      will-change: opacity, transform, max-height;
+    }
+
+    /* Full-bleed reading row: the expanded bodies are not confined to the
+       right-hand column any more — the Chinese steps fill the left band (under
+       the number and title) while the English steps keep the right side.
+       The split is held at 35% of the row width (0.70fr : 1.30fr) so the
+       Chinese body stops well short of the middle of the row — its right edge
+       lands at about x446 on a 1280px window — and never runs into the right
+       half where the English body lives. */
+    .flow-reveal {
+      display: grid;
+      grid-template-columns: minmax(0, 0.70fr) minmax(0, 1.30fr);
+      column-gap: 0;
+    }
+
+    .flow-steps {
+      grid-column: 1;
+      grid-row: 1;
+    }
+
+    /* The two bodies sit side by side with no gutter between them; the insets
+       of the English list are declared in the .flow-steps.en rule below, where
+       left and right are set together. */
+    .flow-steps.en {
+      grid-column: 2;
+      grid-row: 1;
     }
 
     .flow-item:hover .flow-detail,
     .flow-item:focus-within .flow-detail,
     .flow-item.open .flow-detail {
-      max-height: 380px;
+      /* Landing height measured from the real content (plus a 2px safety
+         margin), so nothing is ever clipped by sub-pixel rounding */
+      height: var(--flow-hopen, 620px);
       opacity: 1;
-      padding-top: 18px;
       transform: translateY(0);
+    }
+
+    .flow-item:hover .flow-reveal,
+    .flow-item:focus-within .flow-reveal,
+    .flow-item.open .flow-reveal {
+      padding-top: 18px;
     }
 
     .flow-detail p {
@@ -2291,9 +2333,12 @@
       line-height: 1.68;
     }
 
+    /* Each list is its own block: the 30px number gutter on the left is matched
+       by the same 30px on the right, so the "number + text" block sits
+       symmetrically inside its own ol instead of hugging the left edge. */
     .flow-steps {
       margin: 0;
-      padding: 0;
+      padding: 0 30px;
       list-style: none;
       counter-reset: flowStep;
       display: grid;
@@ -2306,6 +2351,7 @@
     .flow-steps li {
       position: relative;
       padding-left: 30px;
+      min-width: 0;
     }
 
     .flow-steps li::before {
@@ -2323,6 +2369,11 @@
       color: rgba(246,241,232,0.46);
       font-size: clamp(11px, 0.95vw, 13px);
       line-height: 1.5;
+      /* Both insets are declared here, with !important so the shared
+         .flow-steps padding cannot re-introduce a left-only offset: the li
+         block then sits symmetric inside this column, like the Chinese list. */
+      padding-left: clamp(14px, 2vw, 28px) !important;
+      padding-right: clamp(14px, 2vw, 28px) !important;
     }
 
     .frames-section {
@@ -3015,13 +3066,20 @@
 
       .flow-detail {
         grid-column: 2;
+      }
+
+      /* Tablet: the reading room is too narrow for two columns, so the bodies
+         stack — Chinese first, then English — and the steps return to the
+         normal indent. */
+      .flow-reveal {
         grid-template-columns: 1fr;
       }
 
-      .flow-item:hover .flow-detail,
-      .flow-item:focus-within .flow-detail,
-      .flow-item.open .flow-detail {
-        max-height: 520px;
+      .flow-steps,
+      .flow-steps.en {
+        grid-column: auto;
+        grid-row: auto;
+        padding-left: 0;
       }
 
       .closing {
@@ -3079,7 +3137,7 @@
       }
 
       body {
-        padding-bottom: calc(76px + env(safe-area-inset-bottom));
+        padding-bottom: calc(62px + env(safe-area-inset-bottom));
       }
     }
 
@@ -3209,7 +3267,12 @@
     @media (max-width: 760px) {
       .extras-inner {
         width: calc(100% - 32px);
-        padding: 14px 0 8px;
+        padding: 14px 0 10px;
+      }
+      /* Collapsed drawer: a thin detection strip instead of the old 30–44px band */
+      .extras-zone {
+        height: 20px;
+        margin-top: -6px;
       }
       .extras-zh,
       .extras-en {
@@ -3284,7 +3347,9 @@
         overflow: visible;
       }
 
-      /* Work method: every flow entry is fully unfolded on phones. */
+      /* Work method: every flow entry is fully unfolded on phones, so the
+         reveal is simply kept open, free to grow with its content and with no
+         measured cap or height animation at all. */
       .flow-item {
         min-height: 0;
         cursor: default;
@@ -3294,11 +3359,190 @@
       .flow-item.open .flow-detail,
       .flow-item:hover .flow-detail,
       .flow-item:focus-within .flow-detail {
+        height: auto;
         max-height: none;
+        overflow: visible;
+        transition: none;
         opacity: 1;
         transform: none;
-        overflow: visible;
+      }
+
+      .flow-item .flow-reveal,
+      .flow-item.open .flow-reveal,
+      .flow-item:hover .flow-reveal,
+      .flow-item:focus-within .flow-reveal {
         margin-top: 14px;
+        overflow: visible;
+      }
+
+      /* Selected frames on phones — one group per page.
+         Horizontal swipe switches group (native CSS scroll-snap, so no JS can
+         swallow the gesture); a vertical swipe inside a group steps through its
+         five stills. Every group shows one full photograph instead of the
+         desktop's overlapping thumbnail stack. */
+      .frame-carousel {
+        --frame-ease: cubic-bezier(0.65, 0, 0.35, 1);
+        min-height: 0;
+        padding-bottom: 10px;
+        padding-top: 0;
+      }
+
+      .frame-stage {
+        height: clamp(420px, 62svh, 560px);
+        display: flex;
+        overflow-x: auto;
+        overflow-y: hidden;
+        scroll-snap-type: x mandatory;
+        -webkit-overflow-scrolling: touch;
+        overscroll-behavior-x: contain;
+        touch-action: pan-x;
+        cursor: default;
+        scrollbar-width: none;
+        background:
+          radial-gradient(ellipse at 50% 50%, rgba(201, 210, 211, 0.08), transparent 62%),
+          linear-gradient(180deg, rgba(6, 6, 9, 0.28), rgba(6, 6, 9, 0.16));
+      }
+
+      .frame-stage::-webkit-scrollbar {
+        display: none;
+      }
+
+      /* The track must not participate in the pager layout: as a flex item its
+         width is content-based, which makes the groups' 100% flex-basis cyclic
+         and collapses them to 0. display:contents promotes the groups straight
+         into .frame-stage, where 100% resolves against a definite width. */
+      .frame-track {
+        position: relative;
+        inset: auto;
+        display: contents;
+      }
+
+      .frame-group {
+        position: relative;
+        flex: 0 0 100%;
+        width: 100%;
+        /* Stretch to the pager height: the group is the touch surface for the
+           vertical still-stepper, so it must own the whole frame, not just the
+           letterboxed picture. */
+        align-self: stretch;
+        height: auto;
+        left: auto;
+        top: auto;
+        aspect-ratio: auto;
+        scroll-snap-align: center;
+        scroll-snap-stop: always;
+        padding: 0;
+        border: none;
+        background: transparent;
+        cursor: default;
+        opacity: 1 !important;
+        transform: none !important;
+        transition: none;
+      }
+
+      .frame-group::before,
+      .frame-stack {
+        display: none !important;
+      }
+
+      .frame-visual {
+        display: none;
+        background-size: contain;
+        background-repeat: no-repeat;
+        background-position: center;
+        transform: none;
+        transition: none;
+      }
+
+      .frame-visual.is-current {
+        display: block;
+      }
+
+      /* Readability scrim behind the group title (the photograph can be bright) */
+      .frame-group::after {
+        content: "";
+        display: block !important;
+        position: absolute;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        height: 88px;
+        z-index: 4;
+        pointer-events: none;
+        background: linear-gradient(180deg, rgba(6, 6, 9, 0), rgba(6, 6, 9, 0.82));
+      }
+
+      .frame-label {
+        position: absolute;
+        left: 12px;
+        right: 12px;
+        bottom: 16px;
+        z-index: 6;
+        text-align: left;
+        pointer-events: none;
+      }
+
+      .frame-label strong {
+        display: block;
+        color: rgba(246, 241, 232, 0.94);
+        font-size: 13px;
+        line-height: 1.3;
+        text-shadow: 0 1px 10px rgba(0, 0, 0, 0.7);
+      }
+
+      /* Frame counter inside the current group (1 / 5 …) */
+      .frame-group::marker {
+        content: none;
+      }
+
+      .frame-number {
+        position: absolute;
+        top: 8px;
+        right: 12px;
+        left: auto;
+        z-index: 6;
+        margin: 0;
+        padding: 2px 8px;
+        border: 1px solid rgba(246, 241, 232, 0.16);
+        border-radius: 999px;
+        background: rgba(6, 6, 9, 0.56);
+        color: rgba(246, 241, 232, 0.74);
+        font-size: 11px;
+        line-height: 1.4;
+        letter-spacing: 0.06em;
+        font-weight: 500;
+        text-shadow: none;
+        /* the desktop projector positions the badge with a JS-set offset; the
+           pager pins it to the top-right corner instead */
+        transform: none !important;
+        inset-inline-start: auto !important;
+        pointer-events: none;
+      }
+
+      /* Caption sits under the pager; the dots keep their own row. */
+      .frame-caption {
+        width: 100%;
+        margin-top: 4px;
+        display: grid;
+        gap: 10px;
+      }
+
+      .frame-caption h3 {
+        font-size: 15px;
+      }
+
+      .frame-caption p {
+        min-height: 0;
+      }
+
+      .frame-dots {
+        order: -1;
+        gap: 9px;
+      }
+
+      .frame-dot {
+        width: 6px;
+        height: 6px;
       }
 
       /* Roles & abilities — single full card pager (horizontal swipe).
@@ -3415,7 +3659,7 @@
       <a href="#hero" aria-label="首版 Hero"><span class="site-nav-label">首版</span></a>
       <a href="#advantages" aria-label="优势 Core advantages"><span class="site-nav-label">优势</span></a>
       <a href="#roles" aria-label="技能 Roles &amp; abilities"><span class="site-nav-label">技能</span></a>
-      <a href="#method" aria-label="SOP Work method"><span class="site-nav-label">SOP</span></a>
+      <a href="#method" aria-label="方法 Work method"><span class="site-nav-label">方法</span></a>
       <a href="#frames" aria-label="静帧 Selected frames"><span class="site-nav-label">静帧</span></a>
       <a href="#contact" aria-label="尾版 Contact"><span class="site-nav-label">尾版</span></a>
     </nav>
@@ -3664,6 +3908,7 @@
               <span class="en">Plan and keep re-balancing boundaries, rhythm and milestones — break in a fresh team, keep a seasoned one running smoothly, from each individual up to the whole crew.</span>
             </p>
             <div class="flow-detail">
+              <div class="flow-reveal">
               <ol class="flow-steps">
                 <li>确认关键岗位技能、熟练度与事件处置水平，了解人员的沟通习惯与现场状态，据此调整指令深度并安排具体工作</li>
                 <li>划清讲明权责与责任边界，排清道明任务优先级，讲明反馈口径</li>
@@ -3676,6 +3921,7 @@
                 <li>Use one shared progress-reporting system, so I can see how every department is tracking and adjust assignments as things move.</li>
                 <li>Account for how well the team has gelled — first days, mid-run, the run-up to wrap and special sequences all tax people differently — then weigh every scene against shooting intensity and plan, and re-plan, the order and workloads in advance.</li>
               </ol>
+              </div>
             </div>
           </article>
 
@@ -3689,6 +3935,7 @@
               <span class="en">Keep learning and refining technology and workflow on my own initiative — a practice that keeps renewing itself is one that never stops moving forward.</span>
             </p>
             <div class="flow-detail">
+              <div class="flow-reveal">
               <ol class="flow-steps">
                 <li>保持对行业技术信息与社会环境的持续了解，分析新技术的有效性，辨别营销与炒作，了解政策与受众环境变化。</li>
                 <li>学习与采纳新技术时，应先展开小规模的试点，纳入现有工作体系时规划容错空间，保证整体调度稳定与损失可控。</li>
@@ -3701,6 +3948,7 @@
                 <li>Keep learning from peers — borrow their strengths, fix weak points — and adapt the workflow around bottlenecks and changing conditions, never letting laziness or inertia stall improvement.</li>
                 <li>Keep observing and taking notes; when a real need appears that no solution, or no good solution, covers yet, put a sensible amount of resources into active research.</li>
               </ol>
+              </div>
             </div>
           </article>
 
@@ -3714,6 +3962,7 @@
               <span class="en">Stay alert to risk — every risk has a plan, and every surprise has a fallback.</span>
             </p>
             <div class="flow-detail">
+              <div class="flow-reveal">
               <ol class="flow-steps">
                 <li>规划勘景阶段对可能存在的风险点与风险程度进行研判，小风险有预案，大风险当避则避。</li>
                 <li>对涉及人员安全的行动，采取“零信任”的方式监督保险措施与具体行动的执行。</li>
@@ -3724,6 +3973,7 @@
                 <li>For anything that touches people's safety, run supervision on a zero-trust basis, the way you would a handover: never take it on faith that the safeguards and the actual execution are in place until you have verified them yourself.</li>
                 <li>When something exceeds the plan, put people's safety first, steady the crew and stop the loss in time; if an unexpected turn also brings an opportunity, only go for it once the risk is confirmed controllable.</li>
               </ol>
+              </div>
             </div>
           </article>
 
@@ -3737,6 +3987,7 @@
               <span class="en">Easy to overlook, yet it decides how far the team can grow — I take it seriously and protect it.</span>
             </p>
             <div class="flow-detail">
+              <div class="flow-reveal">
               <ol class="flow-steps">
                 <li>规划方案伊始便要考虑任务内容与强度对人员情绪与状态的影响，平衡进度排布与工作强度的关系，为团队成员创作劳逸结合的条件。</li>
                 <li>不将负面情绪带入工作，愈是管理之位愈需情绪稳定为先；及时遏制团队中产生的焦虑或浮躁情绪。</li>
@@ -3751,6 +4002,7 @@
                 <li>Give instructions with a clear goal and purpose — never use people like machines by handing out tasks that are confusing or unexplained.</li>
                 <li>Watch everyone's rest levels day to day; when a crunch calls for an all-out sprint, lead from the front and carry your own weight first, and give the crew proper recognition or full compensation.</li>
               </ol>
+              </div>
             </div>
           </article>
         </div>
@@ -5534,8 +5786,14 @@
         "linear-gradient(134deg, #2b2634, #08090c 54%, #4c6a82)"
       ];
 
+      const mobileFramesQuery = window.matchMedia("(max-width: 760px)");
+
       function markInteraction() {
         autoPauseUntil = performance.now() + 10000;
+      }
+
+      function phoneMode() {
+        return mobileFramesQuery.matches;
       }
 
       const groupEls = frameGroups.map((group, groupIndex) => {
@@ -5590,6 +5848,11 @@
         label.innerHTML = `<strong>${group.title}</strong>`;
         button.appendChild(label);
 
+        // Phones: the group is a full page inside a horizontal scroll-snap
+        // pager, so the thumbnail stack and the hover magnify are not used —
+        // the group shows one whole photograph at a time (see updateFrameLabel).
+        const phone = mobileFramesQuery.matches;
+
         button.addEventListener("click", () => {
           if (didDrag || performance.now() < suppressClickUntil) return;
           markInteraction();
@@ -5597,6 +5860,7 @@
         });
 
         button.addEventListener("pointermove", (event) => {
+          if (phone) return;
           if (dragging || groupIndex !== activeGroupIndex) return;
           const stackRect = stack.getBoundingClientRect();
           const targetRect = stackRect.height > 0 ? stackRect : button.getBoundingClientRect();
@@ -5626,6 +5890,57 @@
         if (offset > half) offset -= frameGroups.length;
         if (offset < -half) offset += frameGroups.length;
         return offset;
+      }
+
+      /* ---------------- Phones: scroll-snap pager + vertical still stepper ----
+         · horizontal swipe  → native scroll-snap on .frame-stage switches group
+         · vertical swipe    → steps through the current group's five stills
+         · auto-advance      → advances the still, then the group once the stills
+                               of the current group are exhausted
+         Group switching stays native so no JS listener can swallow the gesture. */
+      let phoneScrollTicking = false;
+      let phoneLastGroup = 0;
+      let touchStartY = 0;
+      let touchActive = false;
+      let stillLockUntil = 0;
+
+      function syncPhoneActiveGroup() {
+        phoneScrollTicking = false;
+        if (!phoneMode()) return;
+        const w = stage.clientWidth || 1;
+        const index = Math.max(0, Math.min(frameGroups.length - 1, Math.round(stage.scrollLeft / w)));
+        if (index === phoneLastGroup && activeGroupIndex === index) return;
+        phoneLastGroup = index;
+        activeGroupIndex = index;
+        updateCaption();
+      }
+
+      function goToGroup(index, behavior) {
+        const next = ((index % frameGroups.length) + frameGroups.length) % frameGroups.length;
+        phoneLastGroup = next;
+        activeGroupIndex = next;
+        const w = stage.clientWidth || 1;
+        stage.scrollTo({ left: next * w, behavior: behavior || "smooth" });
+        updateCaption();
+        groupEls.forEach((el, i) => updateVisualFrames(i));
+      }
+
+      function stepStill(step) {
+        const next = activeFrameIndexes[activeGroupIndex] + step;
+        if (next >= 0 && next < frameGroups[activeGroupIndex].frames.length) {
+          setActiveFrame(activeGroupIndex, next);
+        }
+      }
+
+      function phoneAutoAdvance() {
+        const total = frameGroups[activeGroupIndex].frames.length;
+        if (activeFrameIndexes[activeGroupIndex] < total - 1) {
+          stepStill(1);
+        } else {
+          activeFrameIndexes[activeGroupIndex] = 0;
+          updateVisualFrames(activeGroupIndex);
+          goToGroup(activeGroupIndex + 1);
+        }
       }
 
       function setActiveFrame(groupIndex, frameIndex) {
@@ -5685,6 +6000,17 @@
           );
           thumb.classList.toggle("is-current", isCurrent);
         });
+        if (groupIndex === activeGroupIndex) updateFrameLabel(groupIndex);
+      }
+
+      // Phones: the number badge doubles as a still counter (01 · 3/5).
+      function updateFrameLabel(groupIndex) {
+        if (!phoneMode()) return;
+        const el = groupEls[groupIndex];
+        const numEl = el && el.querySelector(".frame-number");
+        if (!numEl) return;
+        const total = frameGroups[groupIndex].frames.length;
+        numEl.textContent = String(groupIndex + 1).padStart(2, "0") + " · " + (activeFrameIndexes[groupIndex] + 1) + "/" + total;
       }
 
       function updateCaption() {
@@ -5707,6 +6033,20 @@
       }
 
       function renderGroups() {
+        if (phoneMode()) {
+          // Phones own no positional maths: the pager is plain flow, so the
+          // active group only needs its class (and every still its own state).
+          groupEls.forEach((el, index) => {
+            el.classList.toggle("is-active", index === activeGroupIndex);
+            el.classList.remove("is-left", "is-hovering");
+            el.tabIndex = 0;
+            el.style.pointerEvents = "auto";
+            updateVisualFrames(index);
+          });
+          updateCaption();
+          requestAnimationFrame(syncPhoneActiveGroup);
+          return;
+        }
         groupEls.forEach((el, index) => {
           const offset = getCircularOffset(index);
           const abs = Math.abs(offset);
@@ -5741,6 +6081,7 @@
       }
 
       function setActiveGroup(index) {
+        if (phoneMode()) { goToGroup(index); return; }
         const next = (index + frameGroups.length) % frameGroups.length;
         if (next === activeGroupIndex) return;
         // The outgoing group returns to its initial stacked layout.
@@ -5815,7 +6156,10 @@
         return rect.top < window.innerHeight * 0.78 && rect.bottom > window.innerHeight * 0.22;
       }
 
-      stage.addEventListener("wheel", handleWheel, { passive: false });
+      stage.addEventListener("wheel", (event) => {
+        if (phoneMode()) return;
+        handleWheel(event);
+      }, { passive: false });
       stage.addEventListener("pointermove", (event) => {
         syncCentralZone(event.clientX, event.clientY);
       });
@@ -5840,8 +6184,9 @@
         if (document.hidden || dragging) return;
         if (performance.now() < autoPauseUntil) return;
         if (!isCarouselInView()) return;
+        if (phoneMode()) { phoneAutoAdvance(); return; }
         moveGroup(1);
-      }, 8200);
+      }, 10000);
 
       renderGroups();
     }
@@ -5904,8 +6249,60 @@
     window.addEventListener("resize", requestScrollExpansion);
     autoExpandQuery.addEventListener("change", () => {
       document.querySelectorAll(".advantage-card.open, .flow-item.open").forEach((item) => item.classList.remove("open"));
+      measureFlowDetails();
       updateScrollExpansion();
     });
+
+    /* Work-method rows: publish each entry's real content height as --flow-h /
+       --flow-hopen so the CSS height transition has an exact landing value and
+       the body can never be clipped, whatever the wording length.
+       The height is read from the reveal's scrollHeight with the row's cap
+       lifted: measuring the element's own box does not work, because while the
+       cap is active the reveal shrinks to 0 (its scrollHeight still reports the
+       true content: 512 / 512 / 406 / 559px at 1400px wide).
+       Re-measured when the reading width changes, since the two body columns are
+       content-driven. */
+    const FLOW_PAD_TOP = 18;
+    const flowPhoneQuery = window.matchMedia("(max-width: 760px)");
+
+    function measureFlowDetails() {
+      document.querySelectorAll(".flow-item").forEach((item) => {
+        const detail = item.querySelector(".flow-detail");
+        const reveal = item.querySelector(".flow-reveal");
+        if (!detail || !reveal) return;
+
+        // Phones keep every row expanded; the CSS opens them and no height cap
+        // (nor any transition) applies there.
+        if (flowPhoneQuery.matches) {
+          detail.style.removeProperty("--flow-h");
+          detail.style.removeProperty("--flow-hopen");
+          return;
+        }
+
+        const wasOpen = item.classList.contains("open");
+        detail.style.height = "auto";
+        const content = Math.ceil(reveal.scrollHeight);
+        detail.style.height = "";
+        if (wasOpen) item.classList.add("open");
+
+        const h = content > 0 ? content : 600;
+        // +2px absorbs sub-pixel rounding of the measured content height.
+        detail.style.setProperty("--flow-h", h + "px");
+        detail.style.setProperty("--flow-hopen", (h + FLOW_PAD_TOP + 2) + "px");
+      });
+    }
+
+    let flowMeasureTimer = 0;
+    function requestFlowMeasure() {
+      window.clearTimeout(flowMeasureTimer);
+      flowMeasureTimer = window.setTimeout(measureFlowDetails, 160);
+    }
+
+    measureFlowDetails();
+    window.addEventListener("resize", requestFlowMeasure);
+    window.addEventListener("orientationchange", requestFlowMeasure);
+    if (flowPhoneQuery.addEventListener) flowPhoneQuery.addEventListener("change", measureFlowDetails);
+    if (document.fonts && document.fonts.ready) document.fonts.ready.then(measureFlowDetails);
 
     // Bottom drawer: expand on hover over the detection zone or on continued
     // downward wheel at the very bottom (desktop); proportional pull on touch.
@@ -5926,6 +6323,24 @@
       let dragging = false;
       let dragStartY = 0;
       let dragPeek = 0;
+      // Direction lock: a drag is only claimed by the drawer once it clearly
+      // moves upward (peeling it out). Anything else — including the downward
+      // swipe that scrolls the page back up — is left to the browser, and every
+      // inline drag style is cleared on release so the page can never stay
+      // frozen after the drawer has folded away.
+      let dragDecision = "pending";
+      let suppressDrawerClickUntil = 0;
+
+      function markDrawerWheel() {
+        lastWheelAt = performance.now();
+      }
+
+      function clearDragStyles() {
+        panel.style.maxHeight = "";
+        panel.style.opacity = "";
+        extras.classList.remove("dragging");
+        panel.style.removeProperty("--extras-open-h");
+      }
 
       const fullHeight = () => Math.max(60, Math.ceil(inner.offsetHeight));
       const atBottom = () => window.innerHeight + window.scrollY >= document.documentElement.scrollHeight - 24;
@@ -6030,6 +6445,13 @@
           setOpen(!isOpen);
         }
       });
+      // Tap / click fallback: the collapsed strip is only ~20px tall on phones,
+      // so a plain tap toggles the drawer as well (drag peaks stay untouched).
+      zone.addEventListener("click", () => {
+        if (dragPeek > 0 || performance.now() < suppressDrawerClickUntil) return;
+        markDrawerWheel();
+        setOpen(!isOpen);
+      });
       document.addEventListener("keydown", (event) => {
         if (event.key === "Escape" && isOpen) setOpen(false);
       });
@@ -6040,30 +6462,54 @@
       if (touchable) {
         window.addEventListener("touchstart", (event) => {
           if (dragging) return;
-          if (isOpen) {
-            dragging = true;
-            dragStartY = event.touches[0].clientY;
-            dragPeek = fullHeight();
-            extras.classList.add("dragging");
-            return;
-          }
-          if (!atBottom()) return;
           dragging = true;
+          dragDecision = "pending";
           dragStartY = event.touches[0].clientY;
           dragPeek = 0;
-          pointerInside = false;
+          if (isOpen) pointerInside = false;
         }, { passive: true });
 
         window.addEventListener("touchmove", (event) => {
           if (!dragging) return;
-          event.preventDefault();
           const delta = dragStartY - event.touches[0].clientY; // > 0 = finger up
+
+          if (dragDecision === "pending") {
+            if (Math.abs(delta) < 14) return;
+            if (isOpen) {
+              // An open drawer only takes a deliberate downward pull to fold
+              // away; any upward move means the reader is scrolling the page,
+              // so the drawer is released immediately without trapping a touch.
+              dragDecision = delta < -12 ? "release" : "grab";
+            } else {
+              // A closed drawer only appears when the page is already at the
+              // bottom and the finger pulls up; anywhere else the page scrolls.
+              if (delta > 0 && atBottom()) {
+                dragDecision = "grab";
+              } else if (delta < 0) {
+                dragDecision = "release";
+              } else {
+                return;
+              }
+            }
+          }
+
+          if (dragDecision === "release") {
+            // Hand the gesture back: no preventDefault, no pinning, and every
+            // drag artefact is removed so touch scrolling resumes at once.
+            dragging = false;
+            dragDecision = "pending";
+            clearDragStyles();
+            return;
+          }
+
+          event.preventDefault();
           if (isOpen) {
             pinBottom(); // keep it open while the finger holds
             return;
           }
           const cap = fullHeight();
           dragPeek = Math.max(0, Math.min(cap, delta));
+          suppressDrawerClickUntil = performance.now() + 600;
           extras.classList.add("dragging");
           panel.style.maxHeight = dragPeek + "px";
           panel.style.opacity = dragPeek > 0 ? 1 : 0;
@@ -6073,13 +6519,22 @@
         const endTouch = () => {
           if (!dragging) return;
           const peeked = dragPeek;
+          const grabbed = dragDecision === "grab";
           dragging = false;
-          extras.classList.remove("dragging");
-          if (isOpen || peeked > 0) {
-            collapseFrom(Math.max(peeked, isOpen ? fullHeight() : 0));
-          }
+          dragDecision = "pending";
           dragPeek = 0;
-          panel.style.opacity = "";
+          if (!grabbed) {
+            // Never claimed the gesture: clear everything and let the page be.
+            extras.classList.remove("dragging");
+            return;
+          }
+          extras.classList.remove("dragging");
+          if (isOpen) {
+            // Downward pull on an open drawer folds it away.
+            collapseFrom(fullHeight());
+          } else if (peeked > 0) {
+            collapseFrom(peeked);
+          }
         };
         window.addEventListener("touchend", endTouch, { passive: true });
         window.addEventListener("touchcancel", endTouch, { passive: true });
