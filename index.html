@@ -307,6 +307,7 @@
     }
 
     .site-nav a {
+      position: relative;
       width: 7px;
       height: 28px;
       border-radius: 999px;
@@ -319,6 +320,54 @@
       height: 44px;
       background: rgba(201,210,211,0.72);
       outline: none;
+    }
+
+    /* Hover guide: the section name only slides out while the pointer (or
+       keyboard focus) is on the dot; it is hidden otherwise. The plate is a
+       rounded rectangle with softly feathered edges (blurred, borderless)
+       and its height matches the enlarged guide dot. */
+    .site-nav-label {
+      position: absolute;
+      right: calc(100% + 14px);
+      top: 50%;
+      z-index: 1;
+      isolation: isolate;
+      display: flex;
+      align-items: center;
+      height: 44px;
+      padding: 0 20px;
+      border: 0;
+      border-radius: 14px;
+      color: rgba(246,241,232,0.86);
+      font-size: 12.5px;
+      letter-spacing: 0.14em;
+      line-height: 1;
+      white-space: nowrap;
+      pointer-events: none;
+      opacity: 0;
+      transform: translate(8px, -50%);
+      transition:
+        opacity 200ms cubic-bezier(0.65, 0, 0.35, 1),
+        transform 240ms cubic-bezier(0.65, 0, 0.35, 1);
+    }
+
+    .site-nav-label::before {
+      content: "";
+      position: absolute;
+      inset: 3px -2px;
+      z-index: -1;
+      border-radius: 16px;
+      background: rgba(6,6,9,0.9);
+      box-shadow:
+        inset 0 0 0 1px rgba(246,241,232,0.07),
+        0 0 16px 6px rgba(6,6,9,0.72);
+      filter: blur(7px);
+    }
+
+    .site-nav a:hover .site-nav-label,
+    .site-nav a:focus-visible .site-nav-label {
+      opacity: 1;
+      transform: translate(0, -50%);
     }
 
     .mobile-nav {
@@ -716,7 +765,8 @@
       line-height: 1.22;
       transition:
         font-size 680ms var(--ease-advantage),
-        line-height 680ms var(--ease-advantage);
+        line-height 680ms var(--ease-advantage),
+        min-height 680ms var(--ease-advantage);
     }
 
     .advantage-card h3 small {
@@ -748,6 +798,14 @@
       color: rgba(246, 241, 232, 0.42);
       font-size: 0.78em;
       line-height: 1.42;
+      transition: min-height 680ms var(--ease-advantage);
+    }
+
+    /* Chinese summary and its English line are separate blocks, so the rows
+       of every card can be aligned to the same heights. */
+    .advantage-summary .sum-zh {
+      display: block;
+      transition: min-height 680ms var(--ease-advantage);
     }
 
     .advantage-card .advantage-detail {
@@ -820,6 +878,22 @@
         display: flex;
         flex-direction: column;
         justify-content: safe center;
+      }
+
+      /* Overview alignment: in all five cards the number, title, Chinese and
+         English rows start at the same height. The uniform block heights are
+         measured at runtime (see measureAdvantageRow), so the row reads as
+         one aligned composition while the block stays vertically centred. */
+      .advantage-grid:not(.is-active) .advantage-card h3 {
+        min-height: var(--adv-title-h, 0px);
+      }
+
+      .advantage-grid:not(.is-active) .advantage-card .sum-zh {
+        min-height: var(--adv-zh-h, 0px);
+      }
+
+      .advantage-grid:not(.is-active) .advantage-card .advantage-summary .en {
+        min-height: var(--adv-en-h, 0px);
       }
 
       /* One card expands, the others yield by shrinking their width. The
@@ -1066,7 +1140,10 @@
       mask-image: linear-gradient(180deg, transparent 0, #000 7px, #000 calc(100% - 7px), transparent 100%),
         linear-gradient(90deg, transparent 0, #000 5px, #000 calc(100% - 5px), transparent 100%);
       mask-composite: intersect;
-      top: calc(var(--natural-index) * var(--thumb-gap));
+      /* Vertical placement: frame 1 sits at the bottom, 5 at the top
+         (1→5 from bottom to top). The layer order in JS is the opposite
+         (5→1 from bottom to top), so frame 1 is the front-most card. */
+      top: calc((var(--stack-count) - 1 - var(--natural-index)) * var(--thumb-gap));
       height: calc(100% - var(--thumb-gap) * 3);
       border: none;
       background: var(--thumb-bg);
@@ -1226,80 +1303,6 @@
     .frame-dot.is-current {
       width: 18px;
       background: rgba(201,210,211,0.78);
-    }
-
-    /* Touch-friendly in-group frame pager (prev / next / counter).
-       Hidden where hover scrubbing exists; shown on coarse-pointer
-       devices where there is no pointer to scrub frames with. */
-    .frame-pager {
-      display: none;
-      align-items: center;
-      gap: 16px;
-      padding-top: 2px;
-    }
-
-    .frame-pager .frame-arrow {
-      width: 46px;
-      height: 46px;
-      border-radius: 999px;
-      border: 1px solid rgba(246,241,232,0.22);
-      background: rgba(246,241,232,0.05);
-      color: rgba(246,241,232,0.86);
-      font-size: 26px;
-      line-height: 1;
-      padding: 0;
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      cursor: pointer;
-      touch-action: manipulation;
-      transition: background 220ms var(--frame-ease), border-color 220ms var(--frame-ease);
-    }
-
-    .frame-pager .frame-arrow:active {
-      background: rgba(246,241,232,0.16);
-      border-color: rgba(246,241,232,0.4);
-    }
-
-    .frame-pager .frame-arrow:focus-visible {
-      outline: 1px solid rgba(201,210,211,0.72);
-      outline-offset: 3px;
-    }
-
-    .frame-pager .frame-count {
-      min-width: 64px;
-      text-align: center;
-      color: rgba(246,241,232,0.52);
-      font-size: 13px;
-      letter-spacing: 0.12em;
-      font-variant-numeric: tabular-nums;
-      user-select: none;
-    }
-
-    @media (hover: none), (any-pointer: coarse), (max-width: 760px) {
-      .frame-pager { display: inline-flex; }
-
-      /* On touch the deck must behave like a simple one-frame-at-a-time
-         gallery: only the current thumb is visible, filling the whole
-         group area, so tapping ‹/› (or the picture itself) clearly steps
-         between the frames inside the group. */
-      .frame-group.is-active .frame-thumb.is-current {
-        top: 0 !important;
-        left: 0 !important;
-        right: 0 !important;
-        height: 100% !important;
-        transform: none !important;
-        z-index: 45 !important;
-      }
-
-      .frame-group.is-active .frame-thumb:not(.is-current) {
-        opacity: 0 !important;
-      }
-
-      .frame-group.is-hovering .frame-thumb.is-current {
-        transform: none !important;
-        z-index: 45 !important;
-      }
     }
 
     .ability-structure {
@@ -1552,18 +1555,18 @@
       line-height: 1.36;
     }
 
+    /* Overview (nothing enlarged): each block shows its whole summary —
+       Chinese plus the English line — instead of a one-line truncation. */
     .ability-structure:not(.map-expanded) .structure-node:not(.expanded) p {
-      display: -webkit-box;
+      display: block;
       margin-top: 8px;
-      -webkit-line-clamp: 1;
-      -webkit-box-orient: vertical;
-      overflow: hidden;
-      font-size: clamp(10.5px, 0.62vw, 11.5px);
-      line-height: 1.32;
+      overflow: visible;
+      font-size: clamp(11px, 0.66vw, 12px);
+      line-height: 1.42;
     }
 
     .ability-structure:not(.map-expanded) .structure-node:not(.expanded) p em {
-      display: none;
+      display: block;
     }
 
     /* Geometry helper: keep transitions disabled while the desktop map layout
@@ -2417,9 +2420,17 @@
       align-self: end;
       max-width: 1080px;
       display: grid;
-      gap: clamp(12px, 1.8vh, 20px);
-      font-size: clamp(34px, 4.1vw, 68px);
-      line-height: 1.16;
+      gap: clamp(10px, 1.5vh, 18px);
+      /* Sized so that the longest line (25 CJK chars) still fits the 16:9
+         closing stage, keeping the statement on exactly three lines. */
+      font-size: clamp(20px, min(3.2vw, calc((100svh - 190px) * 0.056)), 40px);
+      line-height: 1.2;
+    }
+
+    @media (min-width: 761px) {
+      .closing-box h2 span {
+        white-space: nowrap;
+      }
     }
 
     .closing-box h2 span {
@@ -3046,7 +3057,7 @@
       }
 
       .closing-box h2 {
-        font-size: clamp(30px, 9.2vw, 46px);
+        font-size: clamp(26px, 8.2vw, 40px);
       }
 
       .contact-action {
@@ -3401,12 +3412,12 @@
     </div>
 
     <nav class="site-nav" aria-label="Page sections">
-      <a href="#hero" aria-label="Hero"></a>
-      <a href="#advantages" aria-label="Core advantages"></a>
-      <a href="#roles" aria-label="Roles & abilities"></a>
-      <a href="#method" aria-label="Work method"></a>
-      <a href="#frames" aria-label="Selected frames"></a>
-      <a href="#contact" aria-label="Contact"></a>
+      <a href="#hero" aria-label="首版 Hero"><span class="site-nav-label">首版</span></a>
+      <a href="#advantages" aria-label="优势 Core advantages"><span class="site-nav-label">优势</span></a>
+      <a href="#roles" aria-label="技能 Roles &amp; abilities"><span class="site-nav-label">技能</span></a>
+      <a href="#method" aria-label="SOP Work method"><span class="site-nav-label">SOP</span></a>
+      <a href="#frames" aria-label="静帧 Selected frames"><span class="site-nav-label">静帧</span></a>
+      <a href="#contact" aria-label="尾版 Contact"><span class="site-nav-label">尾版</span></a>
     </nav>
 
     <nav class="mobile-nav" aria-label="Mobile quick navigation">
@@ -3441,18 +3452,17 @@
             <small>Huang Shibao</small>
           </h1>
           <p class="hero-statement">
-            在复杂现场里，把<span>人、技术和变量</span>梳理清楚，交出稳定、有表达的影像结果。
+            我的技能单拎出来也许不会是团队的长板，但会成为<span>桶底与铁箍</span>，拢住人心，兜住产出的底线。
           </p>
           <p class="hero-en">
-            I work through people, technology and changing field conditions to deliver stable images with a clear point of view.
+            On its own my skill set may not be the longest plank in the team, but it is the barrel's bottom and its iron hoop — it holds people together and keeps the floor of the delivery.
           </p>
           <div class="role-tags">
-            <span>执行与统筹<small>Execution / Coordination</small></span>
-            <span>摄影 / 摄像<small>Camera / Shooting</small></span>
-            <span>灯光 / 控光<small>Lighting / Control</small></span>
-            <span>后期 / 成片<small>Post / Finishing</small></span>
-            <span>现场调度<small>Field Direction</small></span>
-            <span>技术支持<small>Technical Support</small></span>
+            <span>编导 / 导演<small>Creative Direction / Directing</small></span>
+            <span>DP / 摄像<small>Camera / DP</small></span>
+            <span>灯指 / 照明<small>Gaffer / Lighting</small></span>
+            <span>后期<small>Post / Finishing</small></span>
+            <span>录音<small>Sound Recording</small></span>
           </div>
 
           <div class="hero-judgement">
@@ -3508,7 +3518,7 @@
             <span class="number">01</span>
             <h3>全面的岗位技能<small>Well-Rounded Role Skills</small></h3>
             <p class="advantage-summary">
-              能在相应的工作岗位上做好执行，更能在团队中进行准确高效的沟通。
+              <span class="sum-zh">能在相应的工作岗位上做好执行，更能在团队中进行准确高效的沟通。</span>
               <span class="en">I can execute well in my own role and communicate clearly and efficiently within the team.</span>
             </p>
             <div class="advantage-detail">
@@ -3526,7 +3536,7 @@
             <span class="number">02</span>
             <h3>良好的人员管理<small>People Management</small></h3>
             <p class="advantage-summary">
-              精准看人，恰当用人，良于待人。
+              <span class="sum-zh">精准看人，恰当用人，良于待人。</span>
               <span class="en">Read people accurately, place them well, and treat them fairly.</span>
             </p>
             <div class="advantage-detail">
@@ -3544,7 +3554,7 @@
             <span class="number">03</span>
             <h3>情绪与叙事组织规划能力<small>Emotion & Narrative Planning</small></h3>
             <p class="advantage-summary">
-              擅长以传达目的为核心，规划视听与叙事，组织情绪以服务于表达。
+              <span class="sum-zh">擅长以传达目的为核心，规划视听与叙事，组织情绪以服务于表达。</span>
               <span class="en">I plan the audiovisual and narrative around the intended message, and shape emotion to serve the expression.</span>
             </p>
             <div class="advantage-detail">
@@ -3562,7 +3572,7 @@
             <span class="number">04</span>
             <h3>风险判断与应对<small>Risk Judgment / Response</small></h3>
             <p class="advantage-summary">
-              识别得了风险点，为它做好预案和准备。直面得了意外，为其做出恰当的处置。
+              <span class="sum-zh">识别得了风险点，为它做好预案和准备。直面得了意外，为其做出恰当的处置。</span>
               <span class="en">I can identify risk points and prepare for them, and face surprises with the right response.</span>
             </p>
             <div class="advantage-detail">
@@ -3580,7 +3590,7 @@
             <span class="number">05</span>
             <h3>非标需求与技术探索<small>Non-Standard Needs & Technical Exploration</small></h3>
             <p class="advantage-summary">
-              熟悉标准化流程的同时，也擅长解决非标问题。勤于技术探索，也保持维稳的习惯。
+              <span class="sum-zh">熟悉标准化流程的同时，也擅长解决非标问题。勤于技术探索，也保持维稳的习惯。</span>
               <span class="en">I know standard workflows well and can solve non-standard problems; I explore technology actively while keeping delivery stable.</span>
             </p>
             <div class="advantage-detail">
@@ -3770,21 +3780,7 @@
           <div class="frame-caption" aria-live="polite">
             <h3 id="frameCaptionTitle"></h3>
             <p id="frameCaptionText"></p>
-            <div class="frame-pager" id="framePager" aria-label="Group frame pager">
-              <button type="button" class="frame-arrow" id="framePrev" aria-label="上一张图片">‹</button>
-              <span class="frame-count" id="frameCount" aria-live="polite"></span>
-              <button type="button" class="frame-arrow" id="frameNext" aria-label="下一张图片">›</button>
-            </div>
             <div class="frame-dots" id="frameDots"></div>
-          </div>
-        </div>
-
-        <div class="field-bridge" aria-label="Execution principle bridge">
-          <div class="field-bridge-inner">
-            <p>
-              精推细算，不让草率判断浪费宝贵的人力与资源。
-              <span class="en">Plan carefully, so rushed decisions do not waste people, time or resources.</span>
-            </p>
           </div>
         </div>
       </div>
@@ -3793,11 +3789,12 @@
     <section class="closing" id="contact" aria-label="Contact">
       <div class="closing-box">
         <h2>
-          <span>具体执行，我能稳住。</span>
-          <span class="focus-line">放到统筹位置，我更适合把人、现场和交付串起来。</span>
+          <span>于我所聘，经历概难以覆盖，言语亦难自证。</span>
+          <span class="focus-line">只望能打开一扇沟通的窗口，</span>
+          <span class="focus-line">一次寥寥数天的合作，便足以映证我们双方是否相合。</span>
         </h2>
         <p>
-          I hold execution work steady. In a coordinating role, I'm at my best connecting people, field conditions and delivery.
+          For the role you are hiring for, my experience can hardly cover everything, and words can prove little. All I ask for is a window to talk — a few days of working together is enough to show whether we actually fit.
         </p>
         <div class="contact-meta" aria-label="Contact information">
           <span>黄世宝 HUANG SHIBAO</span>
@@ -3898,62 +3895,62 @@
 
     const FRAME_DATA = [
       {
-        file: "10e336b4ccd1e254bb9d56eca3ada008.PNG",
+        file: "10e336b4ccd1e254bb9d56eca3ada008.jpg",
         accents: [
-          "18ee165e6444718902921246271956b3.PNG",
-          "静帧 2025-10-24 165418_1.305.1.png",
-          "静帧 2025-10-24 144254_1.1348.1.png",
-          "静帧 2025-10-24 154949_1.149.1.png"
+          "18ee165e6444718902921246271956b3.jpg",
+          "静帧 2025-10-24 165418_1.305.1.jpg",
+          "静帧 2025-10-24 144254_1.1348.1.jpg",
+          "静帧 2025-10-24 154949_1.149.1.jpg"
         ],
         title: "Hero"
       },
       {
-        file: "静帧 2025-10-24 144254_1.1348.1.png",
+        file: "静帧 2025-10-24 144254_1.1348.1.jpg",
         accents: [
-          "静帧 2025-10-24 144254_1.207.1.png",
-          "静帧 2025-10-24 144254_1.241.1.png",
-          "静帧 2025-10-24 144254_1.77.1.png",
-          "静帧 2025-10-24 154949_1.149.1.png"
+          "静帧 2025-10-24 144254_1.207.1.jpg",
+          "静帧 2025-10-24 144254_1.241.1.jpg",
+          "静帧 2025-10-24 144254_1.77.1.jpg",
+          "静帧 2025-10-24 154949_1.149.1.jpg"
         ],
         title: "Core Advantages"
       },
       {
-        file: "18ee165e6444718902921246271956b3.PNG",
+        file: "18ee165e6444718902921246271956b3.jpg",
         accents: [
-          "1a14a8bb8e7dd791c5688d54ee409d8f.PNG",
-          "静帧 2025-10-15 193807_1.119.1.png",
-          "mmexport1729166793424(1).png",
-          "静帧 2025-10-24 165418_1.181.1.png"
+          "1a14a8bb8e7dd791c5688d54ee409d8f.jpg",
+          "静帧 2025-10-15 193807_1.119.1.jpg",
+          "mmexport1729166793424(1).jpg",
+          "静帧 2025-10-24 165418_1.181.1.jpg"
         ],
         title: "Roles & Abilities"
       },
       {
-        file: "静帧 2025-10-24 165418_1.305.1.png",
+        file: "静帧 2025-10-24 165418_1.305.1.jpg",
         accents: [
-          "bf0168d17r6a688816121a109d61c672.PNG",
-          "静帧 2025-10-24 165418_1.248.1.png",
-          "静帧 2025-10-24 165418_1.358.1.png",
-          "静帧 2025-10-24 165418_1.177.1.png"
+          "bf0168d17r6a688816121a109d61c672.jpg",
+          "静帧 2025-10-24 165418_1.248.1.jpg",
+          "静帧 2025-10-24 165418_1.358.1.jpg",
+          "静帧 2025-10-24 165418_1.177.1.jpg"
         ],
         title: "Work Method"
       },
       {
-        file: "静帧 2025-10-24 154949_1.149.1.png",
+        file: "静帧 2025-10-24 154949_1.149.1.jpg",
         accents: [
-          "静帧 2025-10-24 154949_1.33.1.png",
-          "静帧 2025-10-24 154949_1.43.1.png",
-          "静帧 2025-10-24 154949_1.80.1.png",
-          "静帧 2025-10-24 154949_1.162.1.png"
+          "静帧 2025-10-24 154949_1.33.1.jpg",
+          "静帧 2025-10-24 154949_1.43.1.jpg",
+          "静帧 2025-10-24 154949_1.80.1.jpg",
+          "静帧 2025-10-24 154949_1.162.1.jpg"
         ],
         title: "Selected Frames"
       },
       {
-        file: "静帧 2025-10-22 181917_1.420.1.png",
+        file: "静帧 2025-10-22 181917_1.420.1.jpg",
         accents: [
-          "静帧 2025-10-22 181917_1.410.1.png",
-          "静帧 2025-10-22 181917_1.382.1.png",
-          "静帧 2025-10-22 181917_1.355.1.png",
-          "静帧 2025-10-22 181917_1.166.1.png"
+          "静帧 2025-10-22 181917_1.410.1.jpg",
+          "静帧 2025-10-22 181917_1.382.1.jpg",
+          "静帧 2025-10-22 181917_1.355.1.jpg",
+          "静帧 2025-10-22 181917_1.166.1.jpg"
         ],
         title: "Closing"
       }
@@ -5357,8 +5354,33 @@
         hoveredCard = el && el.closest(".advantage-card");
       }
       advantageGrid.classList.add("measuring");
-      advantageGrid.classList.add("is-active");
+      advantageGrid.classList.remove("is-active");
+      advantageCards.forEach((card) => card.classList.remove("open"));
       advantageGrid.style.removeProperty("--adv-row-h");
+      advantageGrid.style.removeProperty("--adv-title-h");
+      advantageGrid.style.removeProperty("--adv-zh-h");
+      advantageGrid.style.removeProperty("--adv-en-h");
+
+      // Row alignment: all cards share the tallest title block, the tallest
+      // Chinese block and the tallest English block, which makes every card's
+      // content exactly the same height — so the text rows line up across the
+      // row while the block stays vertically centred as a whole.
+      let maxTitleH = 0;
+      let maxSumH = 0;
+      let maxEnH = 0;
+      advantageCards.forEach((card) => {
+        const title = card.querySelector("h3");
+        const sumZh = card.querySelector(".advantage-summary .sum-zh");
+        const sumEn = card.querySelector(".advantage-summary .en");
+        if (title) maxTitleH = Math.max(maxTitleH, Math.ceil(title.getBoundingClientRect().height));
+        if (sumZh) maxSumH = Math.max(maxSumH, Math.ceil(sumZh.getBoundingClientRect().height));
+        if (sumEn) maxEnH = Math.max(maxEnH, Math.ceil(sumEn.getBoundingClientRect().height));
+      });
+      advantageGrid.style.setProperty("--adv-title-h", maxTitleH + "px");
+      advantageGrid.style.setProperty("--adv-zh-h", maxSumH + "px");
+      advantageGrid.style.setProperty("--adv-en-h", maxEnH + "px");
+
+      advantageGrid.classList.add("is-active");
       let maxH = 0;
       advantageCards.forEach((card) => {
         advantageCards.forEach((other) => other.classList.toggle("open", other === card));
@@ -5400,10 +5422,7 @@
       const scores = [...advantageCards].map((card) => {
         const titleLength = card.querySelector("h3")?.textContent.trim().length || 0;
         const summary = card.querySelector(".advantage-summary");
-        const zh = [...(summary?.childNodes || [])]
-          .filter((node) => node.nodeType === Node.TEXT_NODE)
-          .map((node) => node.textContent.trim())
-          .join("");
+        const zh = summary?.querySelector(".sum-zh")?.textContent.trim() || "";
         const en = summary?.querySelector(".en")?.textContent.trim() || "";
         return titleLength * 0.86 + zh.length + en.length * 0.45;
       });
@@ -5477,16 +5496,16 @@
     });
 
     const frameGroups = [
-      { title: "短片 · 何处落花生 · FX6 + FX3", ratio: 2.524, frames: ["网站配图/opt/短片_何处落花生_FX6+FX3/01.jpg","网站配图/opt/短片_何处落花生_FX6+FX3/02.jpg","网站配图/opt/短片_何处落花生_FX6+FX3/03.jpg","网站配图/opt/短片_何处落花生_FX6+FX3/04.jpg","网站配图/opt/短片_何处落花生_FX6+FX3/05.jpg"] },
-      { title: "短片 · 我一直在注视着你 · Komodo X", ratio: 1.896, frames: ["网站配图/opt/短片_我一直在注视着你_Komodo_X/01.jpg","网站配图/opt/短片_我一直在注视着你_Komodo_X/02.jpg","网站配图/opt/短片_我一直在注视着你_Komodo_X/03.jpg","网站配图/opt/短片_我一直在注视着你_Komodo_X/04.jpg","网站配图/opt/短片_我一直在注视着你_Komodo_X/05.jpg"] },
-      { title: "短片 · 斗士 · Alexa 35", ratio: 1.778, frames: ["网站配图/opt/短片_斗士_Alexa35/01.jpg","网站配图/opt/短片_斗士_Alexa35/02.jpg","网站配图/opt/短片_斗士_Alexa35/03.jpg","网站配图/opt/短片_斗士_Alexa35/04.jpg","网站配图/opt/短片_斗士_Alexa35/05.jpg"] },
-      { title: "短片 · 桑梓地 · FX6 + FX3", ratio: 1.778, frames: ["网站配图/opt/短片_桑梓地_FX6+FX3/01.jpg","网站配图/opt/短片_桑梓地_FX6+FX3/02.jpg","网站配图/opt/短片_桑梓地_FX6+FX3/03.jpg","网站配图/opt/短片_桑梓地_FX6+FX3/04.jpg","网站配图/opt/短片_桑梓地_FX6+FX3/05.jpg"] },
-      { title: "短片 · 蛹 · Komodo X", ratio: 1.778, frames: ["网站配图/opt/短片_蛹_Komodo_X/01.jpg","网站配图/opt/短片_蛹_Komodo_X/02.jpg","网站配图/opt/短片_蛹_Komodo_X/03.jpg","网站配图/opt/短片_蛹_Komodo_X/04.jpg","网站配图/opt/短片_蛹_Komodo_X/05.jpg"] },
-      { title: "短片 · 长江和海 · Komodo X", ratio: 1.778, frames: ["网站配图/opt/短片_长江和海_Komodo_X/01.jpg","网站配图/opt/短片_长江和海_Komodo_X/02.jpg","网站配图/opt/短片_长江和海_Komodo_X/03.jpg","网站配图/opt/短片_长江和海_Komodo_X/04.jpg","网站配图/opt/短片_长江和海_Komodo_X/05.jpg"] },
-      { title: "纪录片 · 共渡一江水 · M4 / 御3 / Action 4", ratio: 1.778, frames: ["网站配图/opt/纪录片_共渡一江水_M4_御3_Action4/01.jpg","网站配图/opt/纪录片_共渡一江水_M4_御3_Action4/02.jpg","网站配图/opt/纪录片_共渡一江水_M4_御3_Action4/03.jpg","网站配图/opt/纪录片_共渡一江水_M4_御3_Action4/04.jpg","网站配图/opt/纪录片_共渡一江水_M4_御3_Action4/05.jpg"] },
-      { title: "纪录片 · 内蒙牧民 · DJI Mini 3 Pro", ratio: 1.778, frames: ["网站配图/opt/纪录片_内蒙牧民_DJI_mini3pro/01.jpg","网站配图/opt/纪录片_内蒙牧民_DJI_mini3pro/02.jpg","网站配图/opt/纪录片_内蒙牧民_DJI_mini3pro/03.jpg","网站配图/opt/纪录片_内蒙牧民_DJI_mini3pro/04.jpg","网站配图/opt/纪录片_内蒙牧民_DJI_mini3pro/05.jpg"] },
-      { title: "纪录片 · 杂图1 · Action 4 / A6700 / BMPCC 4K", ratio: 1.778, frames: ["网站配图/opt/纪录片_杂图1_Action4_A6700_BMPCC_4K/01.jpg","网站配图/opt/纪录片_杂图1_Action4_A6700_BMPCC_4K/02.jpg","网站配图/opt/纪录片_杂图1_Action4_A6700_BMPCC_4K/03.jpg","网站配图/opt/纪录片_杂图1_Action4_A6700_BMPCC_4K/04.jpg","网站配图/opt/纪录片_杂图1_Action4_A6700_BMPCC_4K/05.jpg"] },
-      { title: "纪录片 · 潮汕迎老爷 · BMPCC 4K", ratio: 1.778, frames: ["网站配图/opt/纪录片_潮汕迎老爷_BMPCC_4K/01.jpg","网站配图/opt/纪录片_潮汕迎老爷_BMPCC_4K/02.jpg","网站配图/opt/纪录片_潮汕迎老爷_BMPCC_4K/03.jpg","网站配图/opt/纪录片_潮汕迎老爷_BMPCC_4K/04.jpg","网站配图/opt/纪录片_潮汕迎老爷_BMPCC_4K/05.jpg"] }
+      { title: "短片 · 何处落花生 · FX6+FX3", ratio: 2.523, frames: ["网站配图/web/1短片，何处落花生，FX6+FX3/1.jpg","网站配图/web/1短片，何处落花生，FX6+FX3/2.jpg","网站配图/web/1短片，何处落花生，FX6+FX3/3.jpg","网站配图/web/1短片，何处落花生，FX6+FX3/4.jpg","网站配图/web/1短片，何处落花生，FX6+FX3/5.jpg"] },
+      { title: "短片 · 蛹 · Komodo X", ratio: 1.778, frames: ["网站配图/web/2短片，蛹，Komodo X/1.jpg","网站配图/web/2短片，蛹，Komodo X/2.jpg","网站配图/web/2短片，蛹，Komodo X/3.jpg","网站配图/web/2短片，蛹，Komodo X/4.jpg","网站配图/web/2短片，蛹，Komodo X/5.jpg"] },
+      { title: "短片 · 我一直在注视着你 · Komodo X", ratio: 1.896, frames: ["网站配图/web/3短片，我一直在注视着你，Komodo X/1.jpg","网站配图/web/3短片，我一直在注视着你，Komodo X/2.jpg","网站配图/web/3短片，我一直在注视着你，Komodo X/3.jpg","网站配图/web/3短片，我一直在注视着你，Komodo X/4.jpg","网站配图/web/3短片，我一直在注视着你，Komodo X/5.jpg"] },
+      { title: "短片 · 斗士 · Alexa35", ratio: 1.778, frames: ["网站配图/web/4短片，斗士，Alexa35/1.jpg","网站配图/web/4短片，斗士，Alexa35/2.jpg","网站配图/web/4短片，斗士，Alexa35/3.jpg","网站配图/web/4短片，斗士，Alexa35/4.jpg","网站配图/web/4短片，斗士，Alexa35/5.jpg"] },
+      { title: "短片 · 桑梓地 · FX6+FX3", ratio: 1.778, frames: ["网站配图/web/5短片，桑梓地，FX6+FX3/1.jpg","网站配图/web/5短片，桑梓地，FX6+FX3/2.jpg","网站配图/web/5短片，桑梓地，FX6+FX3/3.jpg","网站配图/web/5短片，桑梓地，FX6+FX3/4.jpg","网站配图/web/5短片，桑梓地，FX6+FX3/5.jpg"] },
+      { title: "短片 · 长江和海 · Komodo X", ratio: 1.778, frames: ["网站配图/web/6短片，长江和海，Komodo X/1.jpg","网站配图/web/6短片，长江和海，Komodo X/2.jpg","网站配图/web/6短片，长江和海，Komodo X/3.jpg","网站配图/web/6短片，长江和海，Komodo X/4.jpg","网站配图/web/6短片，长江和海，Komodo X/5.jpg"] },
+      { title: "纪录片 · 潮汕迎老爷 · BMPCC 4K", ratio: 1.778, frames: ["网站配图/web/7纪录片，潮汕迎老爷，BMPCC 4K/1.jpg","网站配图/web/7纪录片，潮汕迎老爷，BMPCC 4K/2.jpg","网站配图/web/7纪录片，潮汕迎老爷，BMPCC 4K/3.jpg","网站配图/web/7纪录片，潮汕迎老爷，BMPCC 4K/4.jpg","网站配图/web/7纪录片，潮汕迎老爷，BMPCC 4K/5.jpg"] },
+      { title: "纪录片 · 共渡一江水 · M4、御3、Action4", ratio: 1.778, frames: ["网站配图/web/8纪录片，共渡一江水，M4、御3、Action4/1.jpg","网站配图/web/8纪录片，共渡一江水，M4、御3、Action4/2.jpg","网站配图/web/8纪录片，共渡一江水，M4、御3、Action4/3.jpg","网站配图/web/8纪录片，共渡一江水，M4、御3、Action4/4.jpg","网站配图/web/8纪录片，共渡一江水，M4、御3、Action4/5.jpg"] },
+      { title: "纪录片 · 内蒙牧民 · DJI mini3pro", ratio: 1.778, frames: ["网站配图/web/9纪录片，内蒙牧民，DJI mini3pro/1.jpg","网站配图/web/9纪录片，内蒙牧民，DJI mini3pro/2.jpg","网站配图/web/9纪录片，内蒙牧民，DJI mini3pro/3.jpg","网站配图/web/9纪录片，内蒙牧民，DJI mini3pro/4.jpg","网站配图/web/9纪录片，内蒙牧民，DJI mini3pro/5.jpg"] },
+      { title: "纪录片 · 杂图1 · Action4、A6700、BMPCC 4K", ratio: 1.778, frames: ["网站配图/web/10纪录片，杂图1，Action4、A6700、BMPCC 4K/1.jpg","网站配图/web/10纪录片，杂图1，Action4、A6700、BMPCC 4K/2.jpg","网站配图/web/10纪录片，杂图1，Action4、A6700、BMPCC 4K/3.jpg","网站配图/web/10纪录片，杂图1，Action4、A6700、BMPCC 4K/4.jpg","网站配图/web/10纪录片，杂图1，Action4、A6700、BMPCC 4K/5.jpg"] },
     ];
 
     function initFrameCarousel() {
@@ -5496,14 +5515,10 @@
       const captionTitle = document.getElementById("frameCaptionTitle");
       const captionText = document.getElementById("frameCaptionText");
       const dots = document.getElementById("frameDots");
-      const pagerPrev = document.getElementById("framePrev");
-      const pagerNext = document.getElementById("frameNext");
-      const pagerCount = document.getElementById("frameCount");
       if (!carousel || !stage || !track || !captionTitle || !captionText || !dots) return;
 
       let activeGroupIndex = 0;
-      const coarseTouch = window.matchMedia("(hover: none), (any-pointer: coarse), (max-width: 760px)").matches;
-      const activeFrameIndexes = frameGroups.map((group) => (coarseTouch ? 0 : Math.max(0, group.frames.length - 1)));
+      const activeFrameIndexes = frameGroups.map(() => 0);
       let wheelLockUntil = 0;
       let autoPauseUntil = 0;
       let dragStartX = 0;
@@ -5511,7 +5526,6 @@
       let dragging = false;
       let didDrag = false;
       let suppressClickUntil = 0;
-      let lastPointerKind = "mouse";
       const tones = ["tone-a", "tone-b", "tone-c", "tone-d"];
       const toneBackgrounds = [
         "linear-gradient(128deg, #25364a, #11141a 52%, #78623e)",
@@ -5579,14 +5593,6 @@
         button.addEventListener("click", () => {
           if (didDrag || performance.now() < suppressClickUntil) return;
           markInteraction();
-          if (groupIndex === activeGroupIndex) {
-            // On touch, a tap on the already-centred group steps to the next
-            // picture inside that group; on desktop the pointer scrub does it.
-            if (lastPointerKind !== "mouse" && group.frames.length > 1) {
-              stepActiveFrame(1);
-            }
-            return;
-          }
           setActiveGroup(groupIndex);
         });
 
@@ -5595,7 +5601,9 @@
           const stackRect = stack.getBoundingClientRect();
           const targetRect = stackRect.height > 0 ? stackRect : button.getBoundingClientRect();
           const ratio = Math.max(0, Math.min(0.999, (event.clientY - targetRect.top) / targetRect.height));
-          const nextFrame = Math.floor(ratio * group.frames.length);
+          // Frame 5 is at the top of the stack and frame 1 at the bottom,
+          // so the pointer's vertical position maps to the frame inverted.
+          const nextFrame = Math.floor((1 - ratio) * group.frames.length);
           setActiveFrame(groupIndex, nextFrame);
         });
 
@@ -5650,12 +5658,7 @@
         if (!group || dragging) return;
         const el = groupEls[groupIndex];
         if (el) el.classList.remove("is-hovering");
-        // Desktop rest state fans the deck to its cover (last thumb). On
-        // touch there is no fan: each tap on ‹/› or the picture itself
-        // steps the frames, and a synthetic pointerleave right after the
-        // tap must not snap the group back, so keep the current frame.
-        if (coarseTouch) return;
-        setActiveFrame(groupIndex, group.frames.length - 1);
+        setActiveFrame(groupIndex, 0);
       }
 
       function leaveProjector() {
@@ -5677,7 +5680,9 @@
           const thumbIndex = Number(thumb.dataset.frameIndex || 0);
           const isCurrent = thumbIndex === currentFrame;
           thumb.style.setProperty("--stack-depth", String(frameGroups[groupIndex].frames.length - thumbIndex));
-          thumb.style.zIndex = String(isCurrent ? 40 + frameGroups[groupIndex].frames.length : 10 + thumbIndex);
+          thumb.style.zIndex = String(
+            isCurrent ? 40 + frameGroups[groupIndex].frames.length : 10 + (frameGroups[groupIndex].frames.length - thumbIndex)
+          );
           thumb.classList.toggle("is-current", isCurrent);
         });
       }
@@ -5687,10 +5692,6 @@
         captionTitle.textContent = group.title;
         captionText.textContent = "";
         dots.innerHTML = "";
-        if (pagerCount) {
-          const current = activeFrameIndexes[activeGroupIndex];
-          pagerCount.textContent = `${current + 1} / ${group.frames.length}`;
-        }
         frameGroups.forEach((item, groupIndexItem) => {
           const dot = document.createElement("button");
           dot.type = "button";
@@ -5702,29 +5703,6 @@
             setActiveGroup(groupIndexItem);
           });
           dots.appendChild(dot);
-        });
-      }
-
-      function stepActiveFrame(direction) {
-        const group = frameGroups[activeGroupIndex];
-        if (!group || group.frames.length < 2) return;
-        const count = group.frames.length;
-        const current = activeFrameIndexes[activeGroupIndex];
-        const next = (current + direction + count) % count;
-        markInteraction();
-        setActiveFrame(activeGroupIndex, next);
-      }
-
-      if (pagerPrev) {
-        pagerPrev.addEventListener("click", (event) => {
-          event.preventDefault();
-          stepActiveFrame(-1);
-        });
-      }
-      if (pagerNext) {
-        pagerNext.addEventListener("click", (event) => {
-          event.preventDefault();
-          stepActiveFrame(1);
         });
       }
 
@@ -5797,7 +5775,6 @@
 
       function startDrag(event) {
         if (event.button !== undefined && event.button !== 0) return;
-        lastPointerKind = event.pointerType || "mouse";
         markInteraction();
         dragging = true;
         didDrag = false;
